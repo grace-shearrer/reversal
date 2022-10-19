@@ -1,0 +1,138 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#devtools::install_github("nproellochs/ReinforcementLearning")
+library(ReinforcementLearning)
+library(dplyr)
+```
+
+# State
+The state in our experiment is the pairing of the image and the taste
+state 1: sweet paired with sweet logo, unsweet paired with unsweet logo
+state 2: unsweet paired with sweet logo, sweet paired with unsweet logo
+inital state is always state 1
+After 2-4 correct responses they flip to state 2
+And so on
+# Action
+Which is chosen?
+Initally in state 1 the sweet logo must be chosen for the reward
+After the flip we enter state 2 and the unsweet logo must be chosen
+# Reward
+Sweet taste = reward
+Unsweet taste = no reward
+# Next state
+If there have been 2-4 correct answers the state will flip
+If there have been fewer than 2-4 correct answers the state is the same
+
+
+```{r}
+coolsworldEnvironment <- function(state, action, corrects, NC) {
+  if (state == state("s1") && action == "sweetLogo") {
+    reward <- 1
+  } else if (state == state("s2") && action == "unsweetLogo")  {
+    reward <- 1
+  } else {
+    reward <- 0
+  }
+  corrects = corrects + reward
+  next_state <- state
+  if (state == state("s1") && action == "sweetLogo" && corrects < NC ) next_state <- state("s1")
+  if (state == state("s1") && action == "sweetLogo" && corrects >= NC ) next_state <- state("s2")
+  if (state == state("s2") && action == "unsweetLogo" && corrects >= NC ) next_state <- state("s1")
+  if (state == state("s2") && action == "unsweetLogo" && corrects < NC ) next_state <- state("s2")
+  if (corrects >= NC) corrects == 0
+  
+  out <- list("State" = state, "NextState" = next_state, "Reward" = reward, "corrects" = corrects, "action" = action)
+  return(out)
+}
+
+#df = coolsworldEnvironment(inital_state,"unsweetLogo",2,3)
+#df$NextState
+```
+
+
+
+# Random choice
+```{r}
+NUM = 5000
+bigdatalist = vector("list", length = NUM)
+
+for (j in 1:NUM){
+num = 21
+needed_corrects = c(3, 4)
+states <- c("s1", "s2")
+actions <- c("sweetLogo", "unsweetLogo")
+
+datalist = vector("list", length = num)
+inital_state = states[1]
+
+  for (i in 1:num) {
+    action = sample(actions, 1)
+    if (i == 1){
+      NC = sample(needed_corrects, 1)
+      df <- coolsworldEnvironment(inital_state, action, 0, NC)}
+    else{
+      if (df$corrects >= NC){
+        NC = sample(needed_corrects, 1)
+        df$corrects = 0}
+      df<-coolsworldEnvironment(df$NextState, action, df$corrects, NC)
+    }
+  datalist[[i]] <- df
+  }
+DF <- data.frame(matrix(unlist(datalist), nrow=length(datalist), byrow=TRUE))
+colnames(DF)<-c("State","NextState", "Reward", "corrects","Action")
+bigdatalist[[j]] <- DF
+}
+```
+
+
+
+
+```{r}
+bigDF<-bind_rows(bigdatalist)
+bigDF$Reward <- as.numeric(as.character(bigDF$Reward))
+bigDF$corrects <- as.numeric(as.character(bigDF$corrects))
+bigDF
+```
+https://stackoverflow.com/questions/39353580/how-to-implement-q-learning-in-r
+```{r}
+# Define reinforcement learning parameters
+control <- list(alpha = 0, gamma = 0.5, epsilon = 0.9)
+
+# Perform reinforcement learning
+model <- ReinforcementLearning(bigDF, 
+                               s = "State", 
+                               a = "Action", 
+                               r = "Reward", 
+                               s_new = "NextState", 
+                               control = control,
+                               iter = 10)
+computePolicy(model)
+print(model)
+summary(model)
+```
+alpha 0.9 = 52237
+alpha 0 = 52237
+
+```{r}
+# Example data
+data_unseen <- data.frame(State = c("s1", "s2"), 
+                          stringsAsFactors = FALSE)
+
+# Pick optimal action
+data_unseen$OptimalAction <- predict(model, data_unseen$State)
+
+data_unseen
+```
+
+
+
+
+```{r}
+save.image("~/Google Drive/research/bbx/RL.RData")
+```
+
+
