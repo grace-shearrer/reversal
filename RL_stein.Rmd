@@ -20,9 +20,11 @@ And so on
 Which is chosen?
 Initally in state 1 the sweet logo must be chosen for the reward
 After the flip we enter state 2 and the unsweet logo must be chosen
+Miss the person doesn't choose
 # Reward
 Sweet taste = reward
 Unsweet taste = no reward
+Miss = null
 # Next state
 If there have been 2-4 correct answers the state will flip
 If there have been fewer than 2-4 correct answers the state is the same
@@ -55,7 +57,7 @@ coolsworldEnvironment <- function(state, action, corrects, NC) {
 
 
 
-# Random choice
+# Random choice <- update to make it learn
 ```{r}
 NUM = 5000
 bigdatalist = vector("list", length = NUM)
